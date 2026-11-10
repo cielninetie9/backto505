@@ -599,7 +599,7 @@ function planeView(st,x,y,w,h){
   return [city(0),null,0,0];
 }
 function planeLayout(){let ow,oh,ox,oy,subW,subMaxH,endX,endY;
-  if(W>=H*1.1){oh=Math.round(H*0.8);ow=Math.round(oh*0.7);const c=Math.round(W*0.65);ox=Math.round(c-ow/2);oy=Math.round((H-oh)/2);subW=Math.max(80,ox-28);subMaxH=H-30;endX=10+subW/2;endY=Math.round(H*0.62);}
+  if(W>=H*1.1){oh=Math.round(H*0.8);ow=Math.round(oh*0.7);const c=Math.round(W*0.73);ox=Math.round(c-ow/2);oy=Math.round((H-oh)/2);subW=Math.max(80,ox-28);subMaxH=H-30;endX=10+subW/2;endY=Math.round(H*0.62);}
   else{ow=Math.round(W*0.7);oh=Math.round(ow*1.35);if(oh>H*0.56){oh=Math.round(H*0.56);ow=Math.round(oh/1.35);}ox=Math.round((W-ow)/2);oy=H-oh-Math.round(H*0.11);subW=W-20;subMaxH=oy-24;endX=W/2;endY=H-36;}
   return {ow,oh,ox,oy,subW,subMaxH,endX,endY};}
 function drawOvalWindow(ox,oy,ow,oh,st){
@@ -614,17 +614,20 @@ function drawOvalWindow(ox,oy,ow,oh,st){
     if(inside(i+6,j)||inside(i-6,j)||inside(i,j+6)||inside(i,j-6))return bay(i,j)<3?1:0;return 0;});
   return turb;
 }
+function subSc(){return W>=420&&H>=260?2:1;}
+const subBold=sc=>sc===1;
+function wrapB(str,maxW,sc){const out=[];let cur='';for(const w of str.split(' ')){const t=cur?cur+' '+w:w;if(textW(t,sc,subBold(sc))>maxW&&cur){out.push(cur);cur=w;}else cur=t;}if(cur)out.push(cur);return out;}
 function subRows(so,st,maxW){
-  if(!so.emph)return wrap(so.s,maxW).map(l=>({h:10,segs:[{txt:l,sc:1,x:0,em:false}]}));
-  const rows=[];let cur={segs:[],w:0,h:10};
+  const sc=subSc(),lh=7*sc+5;
+  if(!so.emph)return wrapB(so.s,maxW,sc).map(l=>({h:lh,segs:[{txt:l,sc,x:0,em:false}]}));
   const ws=so.s.split(' '),toks=[];
   ws.forEach((w,k)=>{if(so.emph.includes(k)&&toks.length&&toks[toks.length-1].e)toks[toks.length-1].w+=' '+w;else toks.push({w,k,e:so.emph.includes(k)});});
-  toks.forEach(tk=>{const w=tk.w,k=tk.k;
-    let sc=1,em=false;
-    if(tk.e&&so.wt[k]!==undefined&&st>=so.wt[k]){em=true;sc=(st-so.wt[k]<0.12)?3:2;}
-    const ww=textW(w,sc,em),gap=cur.segs.length?4:0;
-    if(cur.segs.length&&cur.w+gap+ww>maxW){rows.push(cur);cur={segs:[],w:0,h:10};}
-    const g2=cur.segs.length?4:0;cur.segs.push({txt:w,sc,x:cur.w+g2,em});cur.w+=g2+ww;cur.h=Math.max(cur.h,7*sc+3+(sc>1?3:0));});
+  const rows=[];let cur={segs:[],w:0,h:lh};
+  toks.forEach(tk=>{const w=tk.w,k=tk.k;let s2=sc,em=false;
+    if(tk.e&&so.wt[k]!==undefined&&st>=so.wt[k]){em=true;s2=(st-so.wt[k]<0.12)?sc+2:sc+1;}
+    const ww=textW(w,s2,em||subBold(sc)),gap=cur.segs.length?4*sc:0;
+    if(cur.segs.length&&cur.w+gap+ww>maxW){rows.push(cur);cur={segs:[],w:0,h:lh};}
+    const g2=cur.segs.length?4*sc:0;cur.segs.push({txt:w,sc:s2,x:cur.w+g2,em});cur.w+=g2+ww;cur.h=Math.max(cur.h,7*s2+5+(s2>sc?3:0));});
   if(cur.segs.length)rows.push(cur);return rows;
 }
 function drawSubs(st,L,list){
@@ -634,15 +637,18 @@ function drawSubs(st,L,list){
     if(vol<=0)continue;
     let rows=[];for(const so of an.sent)if(so.t<=st)rows.push(...subRows(so,st,L.subW));
     let tot=rows.reduce((a,r)=>a+r.h,0);while(rows.length>1&&tot>L.subMaxH){tot-=rows[0].h;rows.shift();}
-    const th=vol*64,jit=(1-vol)*3.5;
-    rect(6,6,L.subW+8,tot+6,0);
-    let y=10;
-    for(const r of rows){const base=y+r.h-3;
+    const th=vol*64,jit=(1-vol)*3.5*subSc();
+    rect(4,4,L.subW+12,tot+10,(i,j)=>bay(i,j)<(fb[j*W+i]?2:16)?0:-1);
+    const mk=[];let y=10;
+    for(const r of rows){const base=y+r.h-4;
       for(const g of r.segs){
-        text(g.txt,10+g.x,base-7*g.sc,g.sc,(px,py)=>{if(!g.em&&((px+py)&3)===0)return -1;
-          if(jit>0.05){if(B8[(py&7)*8+(px&7)]>=th)return -1;ps(px+Math.round((Math.random()-0.5)*2*jit),py+Math.round((Math.random()-0.5)*2*jit),1);return -1;}
-          return 1;},g.em);}
+        text(g.txt,10+g.x,base-7*g.sc,g.sc,(px,py)=>{
+          if(jit>0.05){if(B8[(py&7)*8+(px&7)]>=th)return -1;px+=Math.round((Math.random()-0.5)*2*jit);py+=Math.round((Math.random()-0.5)*2*jit);}
+          if(px>=0&&py>=0&&px<W&&py<H)mk.push(py*W+px);return -1;},g.em||subBold(subSc()));}
       y+=r.h;}
+    // black outline, then the letters
+    for(const i of mk){const x=i%W,yy=(i/W)|0;for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){const X=x+dx,Y=yy+dy;if(X>=0&&Y>=0&&X<W&&Y<H)fb[Y*W+X]=0;}}
+    for(const i of mk)fb[i]=1;
   }
 }
 function drawPlaneFlight(t){
@@ -997,14 +1003,15 @@ function scramble(){const cs='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwx
 const ZHPOOL=[...new Set(Object.values(ZH).flat().join('').replace(/[（）。，、？！…\n]/g,''))];
 const CJK_FONT='"PingFang TC","Noto Sans TC","Noto Sans CJK TC","Microsoft JhengHei","Heiti TC","Source Han Sans TC",sans-serif';
 const cjkCache=new Map();let cjkCtx=null;
-function cjkPx(){return W>=330?12:11;}
+function cjkPx(){return W>=330?15:14;}
 function cjkGlyph(ch,px){const key=ch+'|'+px;let g=cjkCache.get(key);if(g)return g;
-  if(!cjkCtx){const c=document.createElement('canvas');c.width=48;c.height=48;cjkCtx=c.getContext('2d',{willReadFrequently:true});}
-  const c=cjkCtx;c.clearRect(0,0,48,48);c.font=px+'px '+CJK_FONT;c.textBaseline='top';c.fillStyle='#fff';c.fillText(ch,1,1);
-  const w=Math.max(2,Math.round(c.measureText(ch).width)),h=px+3,d=c.getImageData(0,0,w+2,h).data,m=new Uint8Array((w+2)*h);
-  for(let i=0;i<m.length;i++)m[i]=d[i*4+3]>=118?1:0;g={w,h,mw:w+2,m};cjkCache.set(key,g);return g;}
+  const SS=4;if(!cjkCtx){const c=document.createElement('canvas');c.width=128;c.height=128;cjkCtx=c.getContext('2d',{willReadFrequently:true});}
+  const c=cjkCtx;c.clearRect(0,0,128,128);c.font='500 '+(px*SS)+'px '+CJK_FONT;c.textBaseline='top';c.fillStyle='#fff';c.fillText(ch,SS,SS);
+  const w=Math.max(2,Math.round(c.measureText(ch).width/SS)),h=px+3,mw=w+2,d=c.getImageData(0,0,mw*SS,h*SS).data,m=new Uint8Array(mw*h);
+  for(let y=0;y<h;y++)for(let x=0;x<mw;x++){let a=0;for(let v=0;v<SS;v++)for(let u=0;u<SS;u++)a+=d[(((y*SS+v)*mw*SS)+(x*SS+u))*4+3];m[y*mw+x]=a/(SS*SS)>=92?1:0;}
+  g={w,h,mw,m};cjkCache.set(key,g);return g;}
 function cjkW(str,px){let w=0;for(const ch of str)w+=cjkGlyph(ch,px).w;return w;}
-function cjkDraw(ch,x,y,px,c=1){const g=cjkGlyph(ch,px);for(let j=0;j<g.h;j++)for(let i=0;i<g.mw;i++)if(g.m[j*g.mw+i])ps(x+i,y+j,c);return g.w;}
+function cjkDraw(ch,x,y,px,c=1,plot){const g=cjkGlyph(ch,px);for(let j=0;j<g.h;j++)for(let i=0;i<g.mw;i++)if(g.m[j*g.mw+i]){if(plot)plot(x+i,y+j);else ps(x+i,y+j,c);}return g.w;}
 function cjkWrap(str,maxW,px){const out=[];let cur='',w=0;const noStart='，。）、？！…：；';
   for(const ch of str){const cw=cjkGlyph(ch,px).w;if(w+cw>maxW&&cur&&!noStart.includes(ch)){out.push(cur);cur='';w=0;}cur+=ch;w+=cw;}if(cur)out.push(cur);return out;}
 const CPS=16,ZCPS=9;
@@ -1019,17 +1026,21 @@ function lineTL(form,li){const key=form+li+'|'+W+'x'+H;let L=tlCache.get(key);if
 function drawDialogue(){
   nextRect=null;if(!RS||RS.phase==='wait'||RS.phase==='end')return;
   const form=RS.order[RS.fi],L=lineTL(form,RS.li),el=now-RS.typeT0,px=L.px;
-  const rh=r=>r.kind==='en'?11:px+3,gap=4;
+  const rh=r=>r.kind==='en'?12:px+4,gap=5;
+  const mk=[],mark=(x,y)=>{x=Math.floor(x);y=Math.floor(y);if(x>=0&&y>=0&&x<W&&y<H)mk.push(y*W+x);return -1;};
   let tot=0,prev=null;for(const r of L.rows){if(prev&&prev.kind==='en'&&r.kind==='zh')tot+=gap;tot+=rh(r);prev=r;}
   const top=H-16-tot-18;
-  rect(0,top-10,W,H-top+10,(i,j)=>(fb[j*W+i]&&bay(i,j)<16-Math.min(16,(j-top+10)*1.4))?1:0);
+  rect(0,top-14,W,H-top+14,(i,j)=>(fb[j*W+i]&&bay(i,j)<16-Math.min(16,(j-top+14)*1.8))?1:0);
   let y=top;prev=null;
   for(const r of L.rows){if(prev&&prev.kind==='en'&&r.kind==='zh')y+=gap;prev=r;
     if(r.kind==='en'){let out='';for(let k=0;k<r.text.length;k++){const u=L.units[r.u0+k];if(u.t>el)break;out+=(el-u.t<0.13&&u.ch!==' ')?scramble():u.ch;}
-      text(out,Math.round(W/2-textW(r.text)/2),y,1,1);}
+      text(out,Math.round(W/2-textW(r.text,1,true)/2),y,1,mark,true);}
     else{let x=Math.round(W/2-cjkW(r.text,px)/2);for(let k=0;k<r.text.length;k++){const u=L.units[r.u0+[...r.text].slice(0,k).length];const ch=[...r.text][k];if(!ch||u.t>el)break;
-        const show=(el-u.t<0.16&&!'，。）（、？！…'.includes(ch))?ZHPOOL[Math.floor(Math.random()*ZHPOOL.length)]:ch;const gw=cjkGlyph(ch,px).w;cjkDraw(show,x,y,px);x+=gw;}}
+        const show=(el-u.t<0.16&&!'，。）（、？！…'.includes(ch))?ZHPOOL[Math.floor(Math.random()*ZHPOOL.length)]:ch;const gw=cjkGlyph(ch,px).w;cjkDraw(show,x,y,px,1,mark);x+=gw;}}
     y+=rh(r);}
+  // 1px black outline around every letter, then the letters in white
+  for(const i of mk){const x=i%W,yy=(i/W)|0;for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){const X=x+dx,Y=yy+dy;if(X>=0&&Y>=0&&X<W&&Y<H)fb[Y*W+X]=0;}}
+  for(const i of mk)fb[i]=1;
   if(RS.phase==='done'&&!(FORMS[form].auto||[]).includes(RS.li)&&now-RS.doneT>0.35){
     const bw=22,bh=13,bx=Math.round(W/2-bw/2),by=H-18,hov=nextHover,c=hov?0:1;
     if(hov)rrect(bx,by,bw,bh,3,1);else if(Math.floor(now*1.6)%2===0)rrect(bx,by,bw,bh,3,(i,j)=>(i===bx||i===bx+bw-1||j===by||j===by+bh-1)&&((i+j)&1)?1:-1);
