@@ -4,6 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <title>Back to 505</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><circle cx='32' cy='32' r='32' fill='%23F4C93A'/><path d='M35 11 L18 36 H30 L27 53 L46 28 H34 Z' fill='%23ffffff'/></svg>">
+<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><circle cx='32' cy='32' r='32' fill='%23F4C93A'/><path d='M35 11 L18 36 H30 L27 53 L46 28 H34 Z' fill='%23ffffff'/></svg>">
 <style>
 html,body{margin:0;height:100%;background:#000;overflow:hidden;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 canvas{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);image-rendering:pixelated;image-rendering:crisp-edges;outline:none}
@@ -23,9 +25,10 @@ let cx0=0,cy0=0,cx1=0,cy1=0;
 const isTouch=matchMedia('(pointer:coarse)').matches;
 
 function resize(){
-  const vw=innerWidth,vh=innerHeight;
+  const vw=innerWidth||document.documentElement.clientWidth||800,vh=innerHeight||document.documentElement.clientHeight||600;
   S=Math.max(2,Math.floor(Math.min(vw,vh)/260));
-  W=Math.min(720,Math.floor(vw/S));H=Math.min(520,Math.floor(vh/S));
+  W=Math.max(64,Math.min(720,Math.floor(vw/S)));H=Math.max(64,Math.min(520,Math.floor(vh/S)));
+  if(W===cv.width&&H===cv.height&&fb&&fb.length===W*H){cv.style.width=W*S+'px';cv.style.height=H*S+'px';return;}
   cv.width=W;cv.height=H;cv.style.width=W*S+'px';cv.style.height=H*S+'px';
   fb=new Uint8Array(W*H);imgD=ctx.createImageData(W,H);buf32=new Uint32Array(imgD.data.buffer);
   noClip();
@@ -1398,6 +1401,8 @@ addEventListener('keydown',e=>{
 addEventListener('keyup',e=>keys.delete(e.code));
 addEventListener('blur',()=>keys.clear());
 addEventListener('resize',resize);
+try{new ResizeObserver(()=>resize()).observe(document.documentElement);}catch(e){}
+setInterval(()=>{const vw=innerWidth,vh=innerHeight;if(vw&&vh&&(Math.abs(cv.width*S-vw)>S*2&&cv.width<720)&&(Math.abs(cv.height*S-vh)>S*2&&cv.height<520))resize();},1000);
 document.addEventListener('visibilitychange',()=>{if(!AC)return;if(document.hidden)AC.suspend();else AC.resume();});
 
 resize();requestAnimationFrame(frame);
